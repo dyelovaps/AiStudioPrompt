@@ -1,0 +1,6 @@
+{
+  "name": "Blacklaw Cinematic Prompt Studio",
+  "description": "An offline-first professional cinematic prompt generation and teaching platform built with HTML, native CSS, and vanilla ES6 modules.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

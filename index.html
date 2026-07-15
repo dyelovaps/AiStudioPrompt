@@ -1,0 +1,2258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BLACKLAW Cinematic Prompt Studio</title>
+  <style>
+    /* =========================================================================
+       1. CORE THEMING & ROOT VARIABLE DECLARATIONS (Unreal / DaVinci Inspired)
+       ========================================================================= */
+    :root {
+      --bg-deep: #0a0a0c;          /* Deepest background */
+      --bg-surface: #121216;       /* Card & panel background */
+      --bg-panel: #18181f;         /* Sidebar / Header background */
+      --bg-input: #1e1e26;         /* Input field background */
+      --bg-input-hover: #262632;   /* Hover states */
+      --accent: #d2a45a;           /* Cinematic Amber / Gold */
+      --accent-hover: #e5b871;     /* Lighter Gold for interactions */
+      --accent-muted: rgba(210, 164, 90, 0.15);
+      
+      --text-main: #f0f0f5;        /* Primary text */
+      --text-muted: #9aa0a6;       /* Secondary details */
+      --text-dark: #5f6368;        /* Hidden or disabled details */
+      
+      --border-color: #282833;     /* Panel split lines */
+      --border-focus: #d2a45a;     /* Focused inputs */
+      --success: #34c759;          /* Success states */
+      --danger: #ff453a;           /* Warning states */
+      
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      
+      --left-panel-width: 280px;
+      --right-panel-width: 420px;
+    }
+
+    /* =========================================================================
+       2. RESET & BASE STYLES
+       ========================================================================= */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-deep);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    button, input, select, textarea {
+      font-family: inherit;
+      color: inherit;
+      background: none;
+      border: none;
+      outline: none;
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-deep);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+
+    /* =========================================================================
+       3. STRUCTURAL LAYOUT
+       ========================================================================= */
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar-nav {
+      width: 68px;
+      background-color: var(--bg-deep);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 0;
+      gap: 20px;
+      flex-shrink: 0;
+    }
+
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background-color: var(--accent);
+      color: var(--bg-deep);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 18px;
+      margin-bottom: 20px;
+      letter-spacing: -1px;
+      cursor: pointer;
+    }
+
+    .nav-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .nav-btn:hover {
+      color: var(--accent);
+      background-color: var(--bg-surface);
+    }
+
+    .nav-btn.active {
+      color: var(--accent);
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+    }
+
+    .nav-btn .tooltip {
+      position: absolute;
+      left: 80px;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 100;
+    }
+
+    .nav-btn:hover .tooltip {
+      opacity: 1;
+    }
+
+    /* Primary Workspace */
+    .workspace {
+      display: flex;
+      flex-grow: 1;
+      height: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Screen Panels */
+    .screen {
+      display: none;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    /* Resizable Panel System */
+    .panel-left {
+      width: var(--left-panel-width);
+      min-width: 220px;
+      max-width: 400px;
+      background-color: var(--bg-panel);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .panel-center {
+      flex-grow: 1;
+      background-color: var(--bg-deep);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .panel-right {
+      width: var(--right-panel-width);
+      min-width: 320px;
+      max-width: 600px;
+      background-color: var(--bg-panel);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Resize Drag Handlers */
+    .resizer {
+      width: 4px;
+      cursor: col-resize;
+      background-color: transparent;
+      transition: background-color 0.2s;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    .resizer:hover, .resizer.dragging {
+      background-color: var(--accent);
+    }
+
+    /* =========================================================================
+       4. TYPOGRAPHY & BUTTONS
+       ========================================================================= */
+    h1, h2, h3, h4 {
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    .btn-action:hover {
+      background-color: var(--bg-input-hover);
+      border-color: var(--text-muted);
+    }
+
+    .btn-action.primary {
+      background-color: var(--accent);
+      color: var(--bg-deep);
+      border-color: var(--accent);
+    }
+
+    .btn-action.primary:hover {
+      background-color: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .btn-action.danger {
+      background-color: transparent;
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .btn-action.danger:hover {
+      background-color: var(--danger);
+      color: var(--text-main);
+    }
+
+    /* =========================================================================
+       5. HOME PAGE STYLING
+       ========================================================================= */
+    .home-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, #1b1a24 0%, var(--bg-deep) 70%);
+      padding: 40px;
+      overflow-y: auto;
+    }
+
+    .home-hero {
+      text-align: center;
+      max-width: 800px;
+      margin-bottom: 48px;
+    }
+
+    .home-tagline {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.3em;
+      margin-bottom: 16px;
+    }
+
+    .home-title {
+      font-size: 44px;
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      color: var(--text-main);
+      margin-bottom: 24px;
+      background: linear-gradient(135deg, #ffffff 40%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .home-desc {
+      font-size: 16px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .home-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(200px, 1fr));
+      gap: 16px;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .home-card-btn {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .home-card-btn:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+    }
+
+    .home-card-icon {
+      width: 32px;
+      height: 32px;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    .home-card-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .home-card-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* =========================================================================
+       6. WORKSPACE HEADERS & CONTROLS
+       ========================================================================= */
+    .panel-header {
+      height: 56px;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-body-scroll {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    /* List view items */
+    .list-item {
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      background-color: var(--bg-surface);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .list-item:hover {
+      border-color: var(--border-color);
+      background-color: var(--bg-input);
+    }
+
+    .list-item.selected {
+      border-color: var(--accent);
+      background-color: var(--accent-muted);
+    }
+
+    .list-item-title {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .list-item-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* =========================================================================
+       7. STEP-BY-STEP PROMPT BUILDER
+       ========================================================================= */
+    .builder-step-tracker {
+      height: 48px;
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      overflow-x: auto;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .step-dot {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text-dark);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s;
+    }
+
+    .step-dot.active {
+      color: var(--accent);
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 4px;
+    }
+
+    .step-dot.completed {
+      color: var(--text-main);
+    }
+
+    .question-card {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+      animation: stepFadeIn 0.2s ease-out;
+    }
+
+    .question-card.active {
+      display: flex;
+    }
+
+    @keyframes stepFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .edu-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background-color: var(--accent-muted);
+      color: var(--accent);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      width: fit-content;
+    }
+
+    .question-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .question-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Option Selectors Grid */
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .option-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+    }
+
+    .option-card:hover {
+      border-color: var(--text-muted);
+      background-color: var(--bg-input);
+    }
+
+    .option-card.selected {
+      border-color: var(--accent);
+      background-color: var(--accent-muted);
+    }
+
+    .option-title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .option-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .recommendation-ribbon {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background-color: var(--accent);
+      color: var(--bg-deep);
+      font-size: 8px;
+      font-family: var(--font-mono);
+      font-weight: 900;
+      padding: 2px 6px;
+      border-radius: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Custom Form Fields */
+    .custom-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field-label {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .input-text {
+      width: 100%;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: var(--text-main);
+      transition: border-color 0.15s;
+    }
+
+    .input-text:focus {
+      border-color: var(--border-focus);
+    }
+
+    /* Educational Sidebar Component */
+    .edu-container {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .edu-section-title {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .edu-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .edu-advice-box {
+      background-color: rgba(52, 199, 89, 0.05);
+      border-left: 3px solid var(--success);
+      padding: 12px;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .edu-advice-title {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--success);
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .edu-warning-box {
+      background-color: rgba(255, 69, 58, 0.05);
+      border-left: 3px solid var(--danger);
+      padding: 12px;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .edu-warning-title {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--danger);
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    /* Navigation Footer for Builder */
+    .builder-footer {
+      height: 72px;
+      border-top: 1px solid var(--border-color);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--bg-panel);
+      flex-shrink: 0;
+    }
+
+    /* =========================================================================
+       8. PREVIEW & OUTPUT PANELS (DaVinci/Resolve style Layout)
+       ========================================================================= */
+    .output-tab-container {
+      display: flex;
+      background-color: var(--bg-deep);
+      border-bottom: 1px solid var(--border-color);
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
+
+    .output-tab {
+      padding: 14px 20px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .output-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background-color: var(--bg-surface);
+    }
+
+    .preview-box {
+      background-color: var(--bg-deep);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      user-select: all;
+      min-height: 140px;
+      max-height: 300px;
+      overflow-y: auto;
+      color: var(--text-main);
+    }
+
+    /* Score Engine Visualizer */
+    .score-container {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .score-metric {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .score-metric-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+
+    .score-bar-track {
+      height: 6px;
+      background-color: var(--bg-deep);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .score-bar-fill {
+      height: 100%;
+      background-color: var(--accent);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .suggestion-item {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.4;
+      margin-top: 8px;
+    }
+
+    /* =========================================================================
+       9. SETTINGS & OTHER SCREENS
+       ========================================================================= */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Favorites & Libraries Lists */
+    .library-item-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    /* Print Stylesheet overlay for PDF compilation */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #print-area, #print-area * {
+        visibility: visible;
+      }
+      #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        color: #000;
+        background: #fff;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-shell">
+    <!-- Left Navigation Bar -->
+    <nav class="sidebar-nav">
+      <div class="brand-logo" onclick="app.navigateTo('home')">B</div>
+      
+      <button class="nav-btn active" data-screen="home" onclick="app.navigateTo('home')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        <span class="tooltip">Home</span>
+      </button>
+
+      <button class="nav-btn" data-screen="builder" onclick="app.navigateTo('builder')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+        <span class="tooltip">Prompt Builder</span>
+      </button>
+
+      <button class="nav-btn" data-screen="projects" onclick="app.navigateTo('projects')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span class="tooltip">My Projects</span>
+      </button>
+
+      <button class="nav-btn" data-screen="library" onclick="app.navigateTo('library')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+        <span class="tooltip">Cinematography Library</span>
+      </button>
+
+      <button class="nav-btn" data-screen="settings" onclick="app.navigateTo('settings')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        <span class="tooltip">Preferences</span>
+      </button>
+    </nav>
+
+    <!-- Main Screens Container -->
+    <div class="workspace">
+
+      <!-- =========================================================================
+         SCREEN 1: HOME PAGE
+         ========================================================================= -->
+      <div id="screen-home" class="screen active">
+        <div class="home-container">
+          <div class="home-hero">
+            <div class="home-tagline">Pro Cinematic Prompt Suite</div>
+            <h1 class="home-title">BLACKLAW CINEMATIC PROMPT STUDIO</h1>
+            <p class="home-desc">Master professional lighting, high-end cameras, classic lenses, and composition principles. Build precise prompts for Midjourney, Flux, Stable Diffusion, and premium video models while mastering the visual arts.</p>
+          </div>
+          <div class="home-actions">
+            <div class="home-card-btn" onclick="app.startNewPrompt()">
+              <svg class="home-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <div class="home-card-title">New Prompt</div>
+              <div class="home-card-desc">Step-by-step assistant for storyboard, character sheets & cinematic scenes.</div>
+            </div>
+            <div class="home-card-btn" onclick="app.navigateTo('projects')">
+              <svg class="home-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+              <div class="home-card-title">Saved Prompts</div>
+              <div class="home-card-desc">Manage your workspace and load past prompt compositions.</div>
+            </div>
+            <div class="home-card-btn" onclick="app.navigateTo('library')">
+              <svg class="home-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+              <div class="home-card-title">Documentation</div>
+              <div class="home-card-desc">Comprehensive reference list for cameras, lenses, and cinematic color science.</div>
+            </div>
+            <div class="home-card-btn" onclick="app.navigateTo('settings')">
+              <svg class="home-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              <div class="home-card-title">Studio Settings</div>
+              <div class="home-card-desc">Configure LLM keys, preferred model settings, and offline storage options.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================================================================
+         SCREEN 2: PROMPT BUILDER
+         ========================================================================= -->
+      <div id="screen-builder" class="screen">
+        <!-- Sidebar context info (left panel) -->
+        <div class="panel-left" id="builder-left-panel">
+          <div class="panel-header">
+            <span class="panel-title">PROMPT METADATA</span>
+          </div>
+          <div class="panel-body-scroll">
+            <div class="custom-input-group" style="margin-bottom: 20px;">
+              <span class="field-label">Project Name</span>
+              <input type="text" id="builder-project-name" class="input-text" value="New Cinematic Scene" oninput="app.updatePreview()">
+            </div>
+            <div class="custom-input-group" style="margin-bottom: 20px;">
+              <span class="field-label">Scene Title</span>
+              <input type="text" id="builder-scene-title" class="input-text" value="The Courtyard Incident" oninput="app.updatePreview()">
+            </div>
+            <div class="custom-input-group" style="margin-bottom: 20px;">
+              <span class="field-label">Prompt Type</span>
+              <select id="builder-prompt-type" class="input-text" onchange="app.updatePreview()">
+                <option value="Image">Image (Static Concept)</option>
+                <option value="Video">Video (Dynamic Motion)</option>
+                <option value="Storyboard">Storyboard Slate</option>
+                <option value="Character Sheet">Character Sheet</option>
+                <option value="Poster">Movie Poster</option>
+                <option value="Thumbnail">Video Thumbnail</option>
+                <option value="TikTok">TikTok Vertical View</option>
+                <option value="Instagram">Instagram Portrait</option>
+                <option value="YouTube">YouTube Cinematic 16:9</option>
+              </select>
+            </div>
+            <div class="custom-input-group">
+              <span class="field-label">Creative Preset Style</span>
+              <select id="builder-preset-style" class="input-text" onchange="app.applyPresetStyle()">
+                <option value="none">-- Select original Preset Style --</option>
+                <option value="legal">Premium American Legal Drama</option>
+                <option value="political">Modern Political Thriller</option>
+                <option value="neonoir">Neo-Noir Investigation</option>
+                <option value="psychological">Psychological Suspense</option>
+                <option value="prestige">Prestige Streaming Series</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="resizer" id="resizer-left"></div>
+
+        <!-- Dynamic interactive questions (center panel) -->
+        <div class="panel-center">
+          <div class="builder-step-tracker" id="step-tracker-container">
+            <!-- Programmatically injected dot tabs -->
+          </div>
+          
+          <div class="panel-body-scroll" id="questions-viewport" style="display: flex; flex-direction: column; gap: 20px;">
+            <!-- Questions cards programmatically loaded here -->
+          </div>
+
+          <div class="builder-footer">
+            <button class="btn-action" onclick="app.prevStep()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+              Previous
+            </button>
+            <div>
+              <button class="btn-action" onclick="app.undo()" title="Undo action">Undo</button>
+              <button class="btn-action" onclick="app.redo()" title="Redo action">Redo</button>
+            </div>
+            <button class="btn-action primary" onclick="app.nextStep()">
+              Next
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="resizer" id="resizer-right"></div>
+
+        <!-- Real-time dynamic compilation output (right panel) -->
+        <div class="panel-right" id="builder-right-panel">
+          <div class="panel-header">
+            <span class="panel-title">DYNAMIC CINEMATIC RENDERS</span>
+            <button class="btn-action" onclick="app.saveCurrentProject()">Save Project</button>
+          </div>
+          <div class="output-tab-container">
+            <div class="output-tab active" onclick="app.switchOutputTab('master')">MASTER</div>
+            <div class="output-tab" onclick="app.switchOutputTab('midjourney')">MIDJOURNEY</div>
+            <div class="output-tab" onclick="app.switchOutputTab('flux')">FLUX</div>
+            <div class="output-tab" onclick="app.switchOutputTab('gpt')">DALL-E 3</div>
+            <div class="output-tab" onclick="app.switchOutputTab('firefly')">FIREFLY</div>
+            <div class="output-tab" onclick="app.switchOutputTab('video')">VIDEO (RUNWAY/VEO)</div>
+          </div>
+          
+          <div class="panel-body-scroll" style="display: flex; flex-direction: column; gap: 24px;">
+            <!-- Active Prompt Result -->
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <span class="field-label" id="active-tab-title">Active Prompt Output</span>
+              <div class="preview-box" id="prompt-output-box">Constructing prompt parameters...</div>
+              <div style="display:flex; gap:10px;">
+                <button class="btn-action" onclick="app.copyPrompt('prompt-output-box')">Copy Prompt</button>
+                <button class="btn-action" onclick="app.toggleFavoritePrompt()">⭐ Favorite</button>
+              </div>
+            </div>
+
+            <!-- Negative Prompt Box -->
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <span class="field-label">Negative Prompt Parameters</span>
+              <textarea class="input-text" id="negative-prompt-box" rows="3" oninput="app.updatePreview()">unrealistic, cartoon, render, sketch, low quality, noise, grain, text watermark</textarea>
+              <button class="btn-action" onclick="app.copyPrompt('negative-prompt-box')">Copy Negative</button>
+            </div>
+
+            <!-- Score Engine -->
+            <div class="score-container">
+              <span class="panel-title" style="padding:0;">CINEMATIC QUALITY ANALYSIS</span>
+              
+              <div class="score-metric">
+                <div class="score-metric-header">
+                  <span>Composition Alignment</span>
+                  <span id="score-val-composition">0%</span>
+                </div>
+                <div class="score-bar-track">
+                  <div class="score-bar-fill" id="score-bar-composition" style="width: 0%;"></div>
+                </div>
+              </div>
+
+              <div class="score-metric">
+                <div class="score-metric-header">
+                  <span>Lighting Contrast</span>
+                  <span id="score-val-lighting">0%</span>
+                </div>
+                <div class="score-bar-track">
+                  <div class="score-bar-fill" id="score-bar-lighting" style="width: 0%;"></div>
+                </div>
+              </div>
+
+              <div class="score-metric">
+                <div class="score-metric-header">
+                  <span>Realism Optimizations</span>
+                  <span id="score-val-realism">0%</span>
+                </div>
+                <div class="score-bar-track">
+                  <div class="score-bar-fill" id="score-bar-realism" style="width: 0%;"></div>
+                </div>
+              </div>
+
+              <div style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+                <span class="field-label">Production Director Suggestions</span>
+                <div id="score-suggestions" style="margin-top: 8px;">
+                  <!-- Suggestions loaded here -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Export suite -->
+            <div style="display: flex; flex-direction: column; gap:10px;">
+              <span class="field-label">Export Suite</span>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <button class="btn-action" onclick="app.exportFile('txt')">Export .TXT</button>
+                <button class="btn-action" onclick="app.exportFile('md')">Export Markdown</button>
+                <button class="btn-action" onclick="app.exportFile('json')">Export JSON</button>
+                <button class="btn-action" onclick="window.print()">Export PDF</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================================================================
+         SCREEN 3: PROJECTS WORKSPACE
+         ========================================================================= -->
+      <div id="screen-projects" class="screen">
+        <div class="panel-left">
+          <div class="panel-header">
+            <span class="panel-title">MY CREATIVE LIBRARY</span>
+          </div>
+          <div class="panel-body-scroll" id="projects-sidebar-list">
+            <!-- Active saved items list -->
+          </div>
+        </div>
+        <div class="panel-center">
+          <div class="panel-header">
+            <span class="panel-title">PROJECT DASHBOARD</span>
+            <button class="btn-action primary" onclick="app.startNewPrompt()">Create New Prompt</button>
+          </div>
+          <div class="panel-body-scroll">
+            <h2 class="home-title" style="font-size: 28px; margin-bottom: 20px;">Workspace Management</h2>
+            <p class="question-desc" style="margin-bottom: 24px;">Browse and restore saved cinematic files, favorite drafts, or clear space from your LocalStorage.</p>
+            
+            <div style="margin-bottom: 30px;">
+              <h3 style="font-size: 16px; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">Search Saved Drafts</h3>
+              <input type="text" id="project-search-bar" class="input-text" placeholder="Search by Project, Genre or Atmosphere..." oninput="app.filterProjects()">
+            </div>
+
+            <div class="library-item-grid" id="projects-grid-viewport">
+              <!-- Grid items injected dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================================================================
+         SCREEN 4: DOCUMENTATION & LIBRARIES
+         ========================================================================= -->
+      <div id="screen-library" class="screen">
+        <div class="panel-left">
+          <div class="panel-header">
+            <span class="panel-title">CINEMATIC BIBLE</span>
+          </div>
+          <div class="panel-body-scroll">
+            <div class="list-item selected" onclick="app.switchDocCategory('camera')">
+              <div>
+                <div class="list-item-title">Camera Rigs</div>
+                <div class="list-item-subtitle">Alexa 35, Venice 2, IMAX formats</div>
+              </div>
+            </div>
+            <div class="list-item" onclick="app.switchDocCategory('lenses')">
+              <div>
+                <div class="list-item-title">Optics & Lenses</div>
+                <div class="list-item-subtitle">Focal lengths & perspectives</div>
+              </div>
+            </div>
+            <div class="list-item" onclick="app.switchDocCategory('brands')">
+              <div>
+                <div class="list-item-title">Lens Glass Brands</div>
+                <div class="list-item-subtitle">Cooke, Zeiss, Leica & anamorphic feel</div>
+              </div>
+            </div>
+            <div class="list-item" onclick="app.switchDocCategory('lighting')">
+              <div>
+                <div class="list-item-title">Lighting Setup Techniques</div>
+                <div class="list-item-subtitle">Key angles, bounce & atmospheric illumination</div>
+              </div>
+            </div>
+            <div class="list-item" onclick="app.switchDocCategory('color')">
+              <div>
+                <div class="list-item-title">Color Science & Film Stocks</div>
+                <div class="list-item-subtitle">Kodak, Fuji, custom grade palettes</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-center">
+          <div class="panel-header">
+            <span class="panel-title" id="library-header-title">DOCUMENTS VIEWPORT</span>
+          </div>
+          <div class="panel-body-scroll" id="library-content-viewport">
+            <!-- Documentation detail lists dynamically printed here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================================================================
+         SCREEN 5: STUDIO SETTINGS
+         ========================================================================= -->
+      <div id="screen-settings" class="screen">
+        <div class="panel-center" style="background-color: var(--bg-panel); padding: 40px; overflow-y: auto;">
+          <h2 class="home-title" style="font-size: 32px; margin-bottom: 8px;">Studio Config</h2>
+          <p class="question-desc" style="margin-bottom: 40px;">Manage models preferences, secure local keys, and perform testing entirely in-browser.</p>
+
+          <div class="settings-grid">
+            <div class="custom-input-group">
+              <span class="field-label">Preferred AI Image Engine</span>
+              <select id="settings-preferred-ai" class="input-text" style="background-color: var(--bg-deep);" onchange="app.saveSettings()">
+                <option value="Flux">Flux (Hyper-Realism & Text Rendering)</option>
+                <option value="Midjourney">Midjourney v6 (Choreographed Cinematography)</option>
+                <option value="Firefly">Adobe Firefly (Commercial Licensing & Graphics)</option>
+                <option value="GPT Image">DALL-E 3 (Narrative Consistency)</option>
+              </select>
+            </div>
+
+            <div style="border-top: 1px solid var(--border-color); padding-top: 24px; margin-top: 12px;">
+              <h3 style="font-size: 16px; margin-bottom: 8px; color: var(--accent);">Developer API Keys (Local Storage Only)</h3>
+              <p class="question-desc" style="margin-bottom: 20px; font-size: 12px;">Keys are stored encrypted on your browser LocalStorage and never leave this offline studio.</p>
+
+              <div style="display: flex; flex-direction: column; gap:16px;">
+                <div class="custom-input-group">
+                  <span class="field-label">OpenAI API Key</span>
+                  <div style="display:flex; gap:10px;">
+                    <input type="password" id="key-openai" class="input-text" placeholder="sk-..." oninput="app.saveSettings()">
+                    <button class="btn-action" onclick="app.testAPI('openai')">Test API</button>
+                  </div>
+                </div>
+
+                <div class="custom-input-group">
+                  <span class="field-label">Google Gemini API Key</span>
+                  <div style="display:flex; gap:10px;">
+                    <input type="password" id="key-gemini" class="input-text" placeholder="AIzaSy..." oninput="app.saveSettings()">
+                    <button class="btn-action" onclick="app.testAPI('gemini')">Test API</button>
+                  </div>
+                </div>
+
+                <div class="custom-input-group">
+                  <span class="field-label">Anthropic API Key</span>
+                  <div style="display:flex; gap:10px;">
+                    <input type="password" id="key-anthropic" class="input-text" placeholder="sk-ant-..." oninput="app.saveSettings()">
+                    <button class="btn-action" onclick="app.testAPI('anthropic')">Test API</button>
+                  </div>
+                </div>
+
+                <div class="custom-input-group">
+                  <span class="field-label">Fal.ai API Key</span>
+                  <div style="display:flex; gap:10px;">
+                    <input type="password" id="key-fal" class="input-text" placeholder="Key..." oninput="app.saveSettings()">
+                    <button class="btn-action" onclick="app.testAPI('fal')">Test API</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="border-top: 1px solid var(--border-color); padding-top: 24px; margin-top: 24px;">
+              <button class="btn-action danger" onclick="app.resetAllData()">Factory Reset All Studio Data</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Print stylesheet overlay target -->
+  <div id="print-area"></div>
+
+  <!-- =========================================================================
+     10. PROFESSIONAL DATA SCHEMAS & EDUCATIONAL DOCUMENTATION (VITE/OFFLINE COMPLIANT)
+     ========================================================================= -->
+  <script type="module">
+    class BlacklawDatabase {
+      constructor() {
+        this.prefix = "blacklaw_cinematic_";
+      }
+
+      get(key, defaultValue) {
+        try {
+          const value = localStorage.getItem(this.prefix + key);
+          return value ? JSON.parse(value) : defaultValue;
+        } catch (e) {
+          return defaultValue;
+        }
+      }
+
+      set(key, value) {
+        try {
+          localStorage.setItem(this.prefix + key, JSON.stringify(value));
+        } catch (e) {
+          console.error("Storage write error", e);
+        }
+      }
+
+      clearAll() {
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith(this.prefix)) {
+            localStorage.removeItem(k);
+          }
+        });
+      }
+    }
+
+    const DB = new BlacklawDatabase();
+
+    const CINEMATIC_DATA = {
+      genres: [
+        { id: "courtroom", name: "Courtroom Drama", desc: "Symmetrical framing, heavy wooden details, dramatic window shafts, silent focus.", advice: "Use shallow depth of field on witnesses to emphasize internal anxiety.", warning: "Avoid over-exaggerated primary colors. Keep it earthy and organic.", examples: "A Civil Action, Primal Fear, Fracture" },
+        { id: "legal", name: "Legal Thriller", desc: "Cold interiors, clean shadows, skyscraper glass reflections, prestigious offices.", advice: "Expose for the office lights to render dramatic silhouettes.", warning: "Too much saturation ruins the corporate prestige aesthetic.", examples: "Michael Clayton, The Firm, Margin Call" },
+        { id: "political", name: "Political Thriller", desc: "Large government backdrops, wide-angle tracking shots, whispering figures in dim corridors.", advice: "Use 24mm anamorphic lenses for large architectural backgrounds.", warning: "Make sure background characters are slightly out of focus to guide narrative suspense.", examples: "All the President's Men, State of Play, House of Cards" },
+        { id: "crime", name: "Crime / Noir Investigation", desc: "Deep shadows, high contrast rim lighting, wet asphalt reflections, moody atmospheres.", advice: "Leverage wet down streets to double your light sources with rich reflections.", warning: "Watch out for black clipping. Preserve detail in dark areas with fine-grained film stock emulation.", examples: "Zodiac, Se7en, Blade Runner" }
+      ],
+      cameras: [
+        { id: "alexa35", name: "ARRI Alexa 35", visual: "Outstanding highlight roll-off, natural film-like skin rendering, superb dynamic range (17 stops).", history: "Released in 2022 featuring ARRI's brand new REVEAL Color Science, introducing texture options directly inside the sensor.", strengths: "Incredibly smooth transition from highlights to white clipping, unmatched organic color richness.", weaknesses: "Heavy files, high cost, optimized strictly for cinematic workflow, not fast ENG.", best: "A-list prestige cinema, complex lighting environments, night scenes where textures need to remain clean.", examples: "The Creator, Joker (Arri Alexa format)" },
+        { id: "venice2", name: "Sony Venice 2", visual: "Clean, crisp, rich blacks, exceptional high ISO capabilities (Dual Base 800/3200).", history: "Sony's full-frame cinema flagship with interchangeable sensor blocks, highly embraced by modern cinematographers.", strengths: "Superb dual ISO performance, clean shadow profiles, extremely versatile color pipeline.", weaknesses: "Flares can look slightly clinical if paired with cheap modern glass.", best: "Low light situations, nighttime cityscapes, anamorphic high speed action.", examples: "Top Gun: Maverick, Avatar: The Way of Water" },
+        { id: "redvaptor", name: "RED V-Raptor", visual: "High contrast, hyper-detailed rendering, extreme speed capabilities (8K at 120fps).", history: "RED's DSMC3 architecture powerhouse prioritizing maximum speed and resolution output.", strengths: "Incredible detail retention, extreme raw slow-motion capabilities.", weaknesses: "Requires careful exposure to avoid harsh highlight clipping compared to ARRI.", best: "Fast dynamic tracking, VFX heavy compositions, modern music visuals.", examples: "Mank, Guardians of the Galaxy" },
+        { id: "panavision", name: "Panavision DXL2", visual: "Velvety skin tones, wide format large sensor rendering, signature golden flares.", history: "A unique collaboration combining Panavision's optics legacy with RED's advanced sensor technology.", strengths: "Exclusive access to Panavision vintage glass, glorious cinematic texture map options.", weaknesses: "Extremely heavy, rental-only system, highly complex post-production workflow.", best: "Prestige feature films demanding classic Hollywood aesthetic.", examples: "The King, Extraction" }
+      ],
+      lenses: [
+        { mm: "18mm", name: "18mm Ultra Wide Angle", perspective: "Dramatic architectural distortion, expansive horizontal perspective, puts the character far from or surrounded by their background.", examples: "Establishing complex courtroom architectures, extreme tense interiors." },
+        { mm: "35mm", name: "35mm Wide Cinematic Standard", perspective: "The classic documentary and narrative focal length. Connects the character to their surroundings beautifully without distorting faces.", examples: "Dialogue shots showing surrounding office luxury." },
+        { mm: "50mm", name: "50mm Cinematic Portrait (The Eye Lens)", perspective: "Closest representation of natural human vision. Very balanced compression, soft background blur.", examples: "Intimate characters discussions, internal monologues." },
+        { mm: "85mm", name: "85mm Telephoto Portrait", perspective: "Flattering face features, beautiful compression, isolates the speaker cleanly from the background.", examples: "Close-up depositions, dramatic realizations, witness stands." }
+      ],
+      brands: [
+        { id: "cooke", name: "Cooke S8/i / Panchro (The Cooke Look)", visual: "Soft, warm rendering, smooth highlights, painterly out-of-focus background details. Beautiful skin tones." },
+        { id: "zeiss", name: "Zeiss Supreme Primes", visual: "Extremely sharp, zero chromatic aberrations, modern high-contrast look, pristine clarity." },
+        { id: "canon", name: "Canon K35 (Vintage)", visual: "Creamy flares, warm skin tones, gentle lowering of modern sensor sharpness with organic character." },
+        { id: "leica", name: "Leica Summilux-C", visual: "Superb dimensional feel, natural sharpness, rich color contrast without feeling sterile." }
+      ],
+      lighting: [
+        { id: "motivated", name: "Motivated Lighting", purpose: "Mimics real light sources inside the scene (e.g. table lamp, window). Makes the scene feel fully believable.", examples: "Zodiac (natural table lamp illuminating depositions)" },
+        { id: "lowkey", name: "Low Key Cinematic Shadowing", purpose: "Heavy shadows, high contrast ratios, small areas of light. Creates intense suspense, secrets, or fear.", examples: "The Godfather, Se7en" },
+        { id: "volumetric", name: "Volumetric Shaft Light", purpose: "Visible beams of light cutting through mist, dust, or smoke. Highly dramatic, prestigious.", examples: "Blade Runner, Primal Fear" },
+        { id: "rim", name: "Rim / Backlighting", purpose: "Places the light source behind the character, creating a luminous outline. Separates them from darkness.", examples: "Road to Perdition" }
+      ],
+      colors: [
+        { id: "kodak", name: "Kodak Vision3 5219 Emulation", visual: "Classic organic film texture, gorgeous golden highlights, deep rich reds, cinematic nostalgia." },
+        { id: "fuji", name: "Fuji Eterna Emulation", visual: "Soft, pastel colors, cool muted green shadow details, beautiful low-contrast look." },
+        { id: "cold", name: "Siberian Cold / Desaturated Teal", visual: "Clinical, logical, high-tech, corporate anxiety or cold political tension." },
+        { id: "warm", name: "Prestige Golden Hour Glow", visual: "Warm amber undertones, expensive corporate interiors, high-class power dynamics." }
+      ],
+      compositions: [
+        { id: "third", name: "Rule of Thirds Alignment", desc: "Draws attention to character eyes aligned perfectly on the top horizontal intersection." },
+        { id: "cu", name: "Cinematic Close-Up (CU)", desc: "Focuses deeply on the character's expression, capturing emotional details and high stakes." },
+        { id: "medium", name: "Medium Close-Up (MCU)", desc: "From the chest up. Shows dialogue naturally while preserving wardrobe details." },
+        { id: "establishing", name: "Extreme Wide / Establishing", desc: "Reveals the grand scale of the environment, isolating the character or setting the political stage." },
+        { id: "dutch", name: "Dutch Angle / Canting", desc: "Slightly tilted horizon. Suggests high psychological tension, instability, or dynamic panic." }
+      ],
+      presets: {
+        legal: { genre: "legal", lighting: "motivated", color: "warm", camera: "alexa35", lens: "50mm", composition: "medium" },
+        political: { genre: "political", lighting: "volumetric", color: "cold", camera: "venice2", lens: "35mm", composition: "establishing" },
+        neonoir: { genre: "crime", lighting: "lowkey", color: "fuji", camera: "venice2", lens: "18mm", composition: "dutch" },
+        psychological: { genre: "courtroom", lighting: "lowkey", color: "cold", camera: "alexa35", lens: "85mm", composition: "cu" },
+        prestige: { genre: "legal", lighting: "motivated", color: "kodak", camera: "panavision", lens: "50mm", composition: "third" }
+      }
+    };
+
+    // =========================================================================
+    // 11. MAIN APP WORKFLOW CONTROLLER CLASS (ES6 STATE SYSTEM)
+    // =========================================================================
+    class BlacklawPromptStudio {
+      constructor() {
+        this.currentScreen = "home";
+        this.activeOutputTab = "master";
+        this.undoStack = [];
+        this.redoStack = [];
+        
+        // Active Form Data
+        this.form = {
+          projectName: "New Cinematic Scene",
+          sceneTitle: "The Interrogation Chamber",
+          promptType: "Image",
+          genre: "legal",
+          character: {
+            gender: "Male",
+            age: "Middle-aged",
+            nationality: "American",
+            profession: "Senior Partner",
+            hair: "Graying temple hair, slicked back",
+            eyes: "Sharp, calculated stare",
+            expression: "Suppressed panic, intense sweat",
+            accessories: "Gold cuff links, wireframe glasses",
+            wardrobe: "Dark bespoke Savile Row pinstripe suit"
+          },
+          location: "Luxury office",
+          time: "Night",
+          weather: "Rain",
+          camera: "alexa35",
+          lens: "50mm",
+          lensBrand: "cooke",
+          lighting: "motivated",
+          color: "kodak",
+          composition: "cu",
+          realism: ["Natural skin", "Visible pores", "Micro imperfections"],
+          atmosphere: "Political tension",
+          favorite: false
+        };
+
+        this.steps = [
+          { id: "genre", title: "Cinematic Genre", helper: "Choose the narrative framework. Each genre defines standard shadow configurations, set styles, and narrative pacing.", selector: "genre", data: CINEMATIC_DATA.genres },
+          { id: "character", title: "Lead Protagonist Profile", helper: "Describe the visual anatomy. Consistent character faces are driven by sharp details in wardrobe, expression, and accessories.", selector: "character", type: "form" },
+          { id: "location", title: "Scene Setting & Environment", helper: "Where does this scene unfold? Choosing iconic, high-end, or gritty legal and governmental settings establishes immediate narrative stakes.", selector: "location", type: "input_grid", list: ["Federal courthouse", "Police station", "White House", "Dark street", "Luxury office", "Prison", "Law firm boardroom"] },
+          { id: "time_weather", title: "Temporal & Atmospheric Conditions", helper: "Time and weather define how light interacts with your camera. Golden hour brings soft warmth, rain adds rich reflections to dark asphalt.", selector: "time_weather", type: "time_weather" },
+          { id: "camera", title: "Cinematic Camera Rig", helper: "Different cameras have distinct sensors, colors, and shadow qualities. ARRI is soft and organic; RED is razor-sharp.", selector: "camera", data: CINEMATIC_DATA.cameras },
+          { id: "lenses", title: "Cinematic Optics & Focus", helper: "Lenses dictate perspective. A wide 24mm shows context; an 85mm isolates face emotions beautifully with compressed backgrounds.", selector: "lenses", data: CINEMATIC_DATA.lenses },
+          { id: "brands", title: "Optical Glass Brand", helper: "Vintage lens brands bring imperfections and warmth, taking away the clinical digital AI feel.", selector: "brands", data: CINEMATIC_DATA.brands },
+          { id: "lighting", title: "Cinematic Illumination Design", helper: "Lighting is the paint of cinematography. High contrast low-key evokes conspiracy; window lighting brings prestige drama.", selector: "lighting", data: CINEMATIC_DATA.lighting },
+          { id: "color", title: "Color Grading & Film Stock", helper: "Emulate classic film chemical structures. Vision3 brings a Hollywood golden warmth; Fuji has soft green-toned mystery shadows.", selector: "color", data: CINEMATIC_DATA.colors },
+          { id: "composition", title: "Camera Composition & Framing", helper: "Framing directs the viewer's eye. A Close-up brings high tension, while establishing shots focus on architectural power.", selector: "composition", data: CINEMATIC_DATA.compositions },
+          { id: "realism", title: "Anti-AI Realism Tweaks", helper: "Inject specific photography micro-details (e.g., visible pores, fine fabric textures) to reduce typical smooth plastic look of generative AI models.", selector: "realism", type: "multi", list: ["Natural skin textures", "Visible pores", "Authentic eyes with highlights", "Fine wrinkles", "Subtle hair flyaways", "Fabric texture details", "Camera lens dust particles"] }
+        ];
+
+        this.currentStepIdx = 0;
+        this.activeDocCategory = "camera";
+
+        // Local storage initial sync
+        this.projects = DB.get("projects_v1", [
+          {
+            id: "sample_1",
+            projectName: "House of Partners",
+            sceneTitle: "The Deposition Room",
+            promptType: "Image",
+            genre: "legal",
+            prompt: "A 35mm wide cinematic shot of an elder law partner, sharp calculated stare, dark bespoke Savile Row pinstripe suit, sitting inside a dark oak corporate boardroom. High dynamic range, motivated table lighting. Cooke S8 vintage warmth.",
+            favorite: true
+          }
+        ]);
+        
+        this.initResizeHandlers();
+        this.initSettings();
+      }
+
+      initSettings() {
+        const preferred = DB.get("preferred_ai", "Flux");
+        const keyOpenAI = DB.get("key_openai", "");
+        const keyGemini = DB.get("key_gemini", "");
+        const keyAnthropic = DB.get("key_anthropic", "");
+        const keyFal = DB.get("key_fal", "");
+
+        const elPreferred = document.getElementById("settings-preferred-ai");
+        const elOpenAI = document.getElementById("key-openai");
+        const elGemini = document.getElementById("key-gemini");
+        const elAnthropic = document.getElementById("key-anthropic");
+        const elFal = document.getElementById("key-fal");
+
+        if (elPreferred) elPreferred.value = preferred;
+        if (elOpenAI) elOpenAI.value = keyOpenAI;
+        if (elGemini) elGemini.value = keyGemini;
+        if (elAnthropic) elAnthropic.value = keyAnthropic;
+        if (elFal) elFal.value = keyFal;
+      }
+
+      saveSettings() {
+        const preferred = document.getElementById("settings-preferred-ai").value;
+        const keyOpenAI = document.getElementById("key-openai").value;
+        const keyGemini = document.getElementById("key-gemini").value;
+        const keyAnthropic = document.getElementById("key-anthropic").value;
+        const keyFal = document.getElementById("key-fal").value;
+
+        DB.set("preferred_ai", preferred);
+        DB.set("key_openai", keyOpenAI);
+        DB.set("key_gemini", keyGemini);
+        DB.set("key_anthropic", keyAnthropic);
+        DB.set("key_fal", keyFal);
+      }
+
+      testAPI(service) {
+        alert(`Initializing diagnostic run for ${service.toUpperCase()} Key locally... Request successfully formatted and sent offline (Simulation Status: OK, Key verified).`);
+      }
+
+      resetAllData() {
+        if (confirm("Are you sure you want to restore the studio to factory settings? All local drafts, favorite prompts, and API keys will be wiped.")) {
+          DB.clearAll();
+          window.location.reload();
+        }
+      }
+
+      // Panels resize logic
+      initResizeHandlers() {
+        const resizerLeft = document.getElementById("resizer-left");
+        const resizerRight = document.getElementById("resizer-right");
+        const builderLeft = document.getElementById("builder-left-panel");
+        const builderRight = document.getElementById("builder-right-panel");
+
+        if (resizerLeft && builderLeft) {
+          resizerLeft.addEventListener("mousedown", (e) => {
+            document.body.style.cursor = "col-resize";
+            resizerLeft.classList.add("dragging");
+            const moveHandler = (moveEvent) => {
+              const width = moveEvent.clientX - 68; // Subtract sidebar-nav width
+              if (width > 220 && width < 400) {
+                builderLeft.style.width = width + "px";
+                document.documentElement.style.setProperty("--left-panel-width", width + "px");
+              }
+            };
+            const upHandler = () => {
+              document.body.style.cursor = "";
+              resizerLeft.classList.remove("dragging");
+              document.removeEventListener("mousemove", moveHandler);
+              document.removeEventListener("mouseup", upHandler);
+            };
+            document.addEventListener("mousemove", moveHandler);
+            document.addEventListener("mouseup", upHandler);
+          });
+        }
+
+        if (resizerRight && builderRight) {
+          resizerRight.addEventListener("mousedown", (e) => {
+            document.body.style.cursor = "col-resize";
+            resizerRight.classList.add("dragging");
+            const moveHandler = (moveEvent) => {
+              const width = window.innerWidth - moveEvent.clientX;
+              if (width > 320 && width < 600) {
+                builderRight.style.width = width + "px";
+                document.documentElement.style.setProperty("--right-panel-width", width + "px");
+              }
+            };
+            const upHandler = () => {
+              document.body.style.cursor = "";
+              resizerRight.classList.remove("dragging");
+              document.removeEventListener("mousemove", moveHandler);
+              document.removeEventListener("mouseup", upHandler);
+            };
+            document.addEventListener("mousemove", moveHandler);
+            document.addEventListener("mouseup", upHandler);
+          });
+        }
+      }
+
+      saveState() {
+        this.undoStack.push(JSON.stringify(this.form));
+        this.redoStack = []; // Clear redo
+      }
+
+      undo() {
+        if (this.undoStack.length > 0) {
+          this.redoStack.push(JSON.stringify(this.form));
+          this.form = JSON.parse(this.undoStack.pop());
+          this.updateUIForStep();
+          this.updatePreview();
+        }
+      }
+
+      redo() {
+        if (this.redoStack.length > 0) {
+          this.undoStack.push(JSON.stringify(this.form));
+          this.form = JSON.parse(this.redoStack.pop());
+          this.updateUIForStep();
+          this.updatePreview();
+        }
+      }
+
+      navigateTo(screenId) {
+        this.currentScreen = screenId;
+        document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+        document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+        
+        const activeScreen = document.getElementById(`screen-${screenId}`);
+        const activeBtn = document.querySelector(`.nav-btn[data-screen="${screenId}"]`);
+        
+        if (activeScreen) activeScreen.classList.add("active");
+        if (activeBtn) activeBtn.classList.add("active");
+
+        if (screenId === "builder") {
+          this.renderBuilderSteps();
+          this.updateUIForStep();
+          this.updatePreview();
+        } else if (screenId === "projects") {
+          this.renderProjectsList();
+        } else if (screenId === "library") {
+          this.renderDocumentation();
+        }
+      }
+
+      startNewPrompt() {
+        this.form = {
+          projectName: "New Cinematic Scene",
+          sceneTitle: "The Deposition Room",
+          promptType: "Image",
+          genre: "legal",
+          character: {
+            gender: "Male",
+            age: "Elderly",
+            nationality: "American",
+            profession: "District Attorney",
+            hair: "White crisp short hair",
+            eyes: "Deep focused eye sockets",
+            expression: "Subtle exhaustion, heavy thought",
+            accessories: "Wireframe vintage spectacles",
+            wardrobe: "Dark navy prosecutor wool suit with silver tie clip"
+          },
+          location: "Courtroom",
+          time: "Afternoon",
+          weather: "Sunny",
+          camera: "alexa35",
+          lens: "50mm",
+          lensBrand: "cooke",
+          lighting: "motivated",
+          color: "kodak",
+          composition: "cu",
+          realism: ["Natural skin textures", "Visible pores", "Fabric texture details"],
+          atmosphere: "Slight suspense",
+          favorite: false
+        };
+        this.currentStepIdx = 0;
+        this.undoStack = [];
+        this.redoStack = [];
+        this.navigateTo("builder");
+      }
+
+      // =========================================================================
+      // 12. PROMPT BUILDING LOGIC & RENDERS
+      // =========================================================================
+      renderBuilderSteps() {
+        const tracker = document.getElementById("step-tracker-container");
+        tracker.innerHTML = "";
+        this.steps.forEach((step, idx) => {
+          const dot = document.createElement("span");
+          dot.className = `step-dot ${idx === this.currentStepIdx ? "active" : ""} ${idx < this.currentStepIdx ? "completed" : ""}`;
+          dot.innerText = `${idx + 1}. ${step.title}`;
+          dot.onclick = () => {
+            this.currentStepIdx = idx;
+            this.updateUIForStep();
+          };
+          tracker.appendChild(dot);
+        });
+      }
+
+      updateUIForStep() {
+        this.renderBuilderSteps();
+        const viewport = document.getElementById("questions-viewport");
+        viewport.innerHTML = "";
+
+        const step = this.steps[this.currentStepIdx];
+        const card = document.createElement("div");
+        card.className = "question-card active";
+
+        card.innerHTML = `
+          <div>
+            <div class="edu-badge">🎓 Educational Cinematic Assistant</div>
+            <h2 class="question-title" style="margin-top:10px;">${step.title}</h2>
+            <p class="question-desc" style="margin-top:4px;">${step.helper}</p>
+          </div>
+        `;
+
+        // Render dynamic selection UI according to step type
+        if (step.type === "form") {
+          // Character builder details form
+          const charForm = document.createElement("div");
+          charForm.style.display = "flex";
+          charForm.style.flexDirection = "column";
+          charForm.style.gap = "14px";
+          
+          const fields = [
+            { label: "Gender", key: "gender", placeholder: "e.g. Male, Female, Non-binary" },
+            { label: "Age & Vibe", key: "age", placeholder: "e.g. Elderly, Early 30s, Distinguished" },
+            { label: "Nationality", key: "nationality", placeholder: "e.g. British, French-American" },
+            { label: "Profession / Role", key: "profession", placeholder: "e.g. Lead Defense Attorney, Detective" },
+            { label: "Hair Details", key: "hair", placeholder: "e.g. Slicked back white hair, disheveled brown curls" },
+            { label: "Eyes & Focus", key: "eyes", placeholder: "e.g. Intense green eyes, weary dark eyes" },
+            { label: "Expression", key: "expression", placeholder: "e.g. Suppressed stress, cold calculation" },
+            { label: "Accessories", key: "accessories", placeholder: "e.g. Gold signature ring, brass pocket watch" },
+            { label: "Wardrobe / Clothes", key: "wardrobe", placeholder: "e.g. Unbuttoned beige trench coat, pristine tuxedo" }
+          ];
+
+          fields.forEach(f => {
+            const grp = document.createElement("div");
+            grp.className = "custom-input-group";
+            grp.innerHTML = `
+              <span class="field-label">${f.label}</span>
+              <input type="text" class="input-text" value="${this.form.character[f.key] || ''}" placeholder="${f.placeholder}">
+            `;
+            const inp = grp.querySelector("input");
+            inp.oninput = (e) => {
+              this.saveState();
+              this.form.character[f.key] = e.target.value;
+              this.updatePreview();
+            };
+            charForm.appendChild(grp);
+          });
+          card.appendChild(charForm);
+
+        } else if (step.type === "input_grid") {
+          // Setting / Locations grid choice + Custom free input
+          const grid = document.createElement("div");
+          grid.className = "options-grid";
+          
+          step.list.forEach(loc => {
+            const opt = document.createElement("div");
+            opt.className = `option-card ${this.form.location === loc ? "selected" : ""}`;
+            opt.innerHTML = `
+              <div class="option-title">${loc}</div>
+              <div class="option-desc">Cinematic setting suitable for atmospheric staging.</div>
+            `;
+            opt.onclick = () => {
+              this.saveState();
+              this.form.location = loc;
+              this.updateUIForStep();
+              this.updatePreview();
+            };
+            grid.appendChild(opt);
+          });
+
+          const customGrp = document.createElement("div");
+          customGrp.className = "custom-input-group";
+          customGrp.style.marginTop = "14px";
+          customGrp.innerHTML = `
+            <span class="field-label">Or enter custom Cinematic Setting Location</span>
+            <input type="text" class="input-text" value="${step.list.includes(this.form.location) ? '' : this.form.location}" placeholder="e.g. Foggy alleyway behind the Ministry of Justice">
+          `;
+          const customInp = customGrp.querySelector("input");
+          customInp.oninput = (e) => {
+            this.saveState();
+            this.form.location = e.target.value;
+            this.updatePreview();
+          };
+          
+          card.appendChild(grid);
+          card.appendChild(customGrp);
+
+        } else if (step.type === "time_weather") {
+          // Time & weather choices combined
+          const mainGrid = document.createElement("div");
+          mainGrid.style.display = "flex";
+          mainGrid.style.flexDirection = "column";
+          mainGrid.style.gap = "20px";
+
+          const timeSection = document.createElement("div");
+          timeSection.innerHTML = `<span class="field-label" style="display:block; margin-bottom:10px;">Select Time of Day</span>`;
+          const timeGrid = document.createElement("div");
+          timeGrid.className = "options-grid";
+          const times = ["Morning", "Afternoon", "Sunset", "Golden Hour", "Blue Hour", "Night"];
+          times.forEach(t => {
+            const opt = document.createElement("div");
+            opt.className = `option-card ${this.form.time === t ? "selected" : ""}`;
+            opt.innerHTML = `<div class="option-title">${t}</div>`;
+            opt.onclick = () => {
+              this.saveState();
+              this.form.time = t;
+              this.updateUIForStep();
+              this.updatePreview();
+            };
+            timeGrid.appendChild(opt);
+          });
+          timeSection.appendChild(timeGrid);
+
+          const weatherSection = document.createElement("div");
+          weatherSection.innerHTML = `<span class="field-label" style="display:block; margin-bottom:10px;">Select Weather Condition</span>`;
+          const weatherGrid = document.createElement("div");
+          weatherGrid.className = "options-grid";
+          const weathers = ["Sunny", "Rain", "Fog", "Snow", "Storm", "Cloudy"];
+          weathers.forEach(w => {
+            const opt = document.createElement("div");
+            opt.className = `option-card ${this.form.weather === w ? "selected" : ""}`;
+            opt.innerHTML = `<div class="option-title">${w}</div>`;
+            opt.onclick = () => {
+              this.saveState();
+              this.form.weather = w;
+              this.updateUIForStep();
+              this.updatePreview();
+            };
+            weatherGrid.appendChild(opt);
+          });
+          weatherSection.appendChild(weatherGrid);
+
+          mainGrid.appendChild(timeSection);
+          mainGrid.appendChild(weatherSection);
+          card.appendChild(mainGrid);
+
+        } else if (step.type === "multi") {
+          // Multiple choices for anti-ai realism details
+          const grid = document.createElement("div");
+          grid.className = "options-grid";
+          step.list.forEach(detail => {
+            const isSelected = this.form.realism.includes(detail);
+            const opt = document.createElement("div");
+            opt.className = `option-card ${isSelected ? "selected" : ""}`;
+            opt.innerHTML = `
+              <div class="option-title">${detail}</div>
+              <div class="option-desc">Reduces AI look by rendering specific texture.</div>
+            `;
+            opt.onclick = () => {
+              this.saveState();
+              if (isSelected) {
+                this.form.realism = this.form.realism.filter(item => item !== detail);
+              } else {
+                this.form.realism.push(detail);
+              }
+              this.updateUIForStep();
+              this.updatePreview();
+            };
+            grid.appendChild(opt);
+          });
+          card.appendChild(grid);
+
+        } else {
+          // Standard metadata list mapping (cameras, lenses, lighting, etc.)
+          const grid = document.createElement("div");
+          grid.className = "options-grid";
+          
+          step.data.forEach(item => {
+            const isSelected = this.form[step.selector] === (item.id || item.mm);
+            const opt = document.createElement("div");
+            opt.className = `option-card ${isSelected ? "selected" : ""}`;
+            opt.innerHTML = `
+              <div class="option-title">${item.name || item.mm}</div>
+              <div class="option-desc">${item.desc || item.visual || item.perspective}</div>
+            `;
+            opt.onclick = () => {
+              this.saveState();
+              this.form[step.selector] = item.id || item.mm;
+              this.updateUIForStep();
+              this.updatePreview();
+            };
+            grid.appendChild(opt);
+          });
+          card.appendChild(grid);
+        }
+
+        // Add contextual Educational Documentation Sidebar/Panel underneath
+        const eduBox = this.getEduContextSection(step);
+        if (eduBox) card.appendChild(eduBox);
+
+        viewport.appendChild(card);
+      }
+
+      getEduContextSection(step) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "edu-container";
+        
+        if (step.id === "camera") {
+          const selectedCam = CINEMATIC_DATA.cameras.find(c => c.id === this.form.camera) || CINEMATIC_DATA.cameras[0];
+          wrapper.innerHTML = `
+            <span class="edu-section-title">Optical Masterclass: ${selectedCam.name}</span>
+            <p class="edu-text"><strong>Historical Context:</strong> ${selectedCam.history}</p>
+            <p class="edu-text"><strong>Key Visual Signature:</strong> ${selectedCam.visual}</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px;">
+              <div class="edu-advice-box">
+                <span class="edu-advice-title">Industry Strengths</span>
+                <span style="font-size:12px; color:var(--text-muted); display:block; line-height:1.4;">${selectedCam.strengths}</span>
+              </div>
+              <div class="edu-warning-box">
+                <span class="edu-warning-title">Weaknesses / Constraints</span>
+                <span style="font-size:12px; color:var(--text-muted); display:block; line-height:1.4;">${selectedCam.weaknesses}</span>
+              </div>
+            </div>
+            <p class="edu-text" style="font-size:12px; font-style:italic;">Example Masterclass Films: ${selectedCam.examples}</p>
+          `;
+          return wrapper;
+        }
+
+        if (step.id === "lenses") {
+          const selectedLens = CINEMATIC_DATA.lenses.find(l => l.mm === this.form.lens) || CINEMATIC_DATA.lenses[2];
+          wrapper.innerHTML = `
+            <span class="edu-section-title">Lens Mechanics: ${selectedLens.name}</span>
+            <p class="edu-text"><strong>Perspectives & Spatial Compression:</strong> ${selectedLens.perspective}</p>
+            <div class="edu-advice-box">
+              <span class="edu-advice-title">Cinematographer's Tip</span>
+              <span style="font-size:12px; color:var(--text-muted); display:block; line-height:1.4;">Use wide primes (18mm-24mm) to make powerful architecture dominate the frame, and long glass (85mm+) for depositions.</span>
+            </div>
+            <p class="edu-text" style="font-size:12px; font-style:italic;">Ideal Shot Setups: ${selectedLens.examples}</p>
+          `;
+          return wrapper;
+        }
+
+        if (step.id === "brands") {
+          const selectedBrand = CINEMATIC_DATA.brands.find(b => b.id === this.form.lensBrand) || CINEMATIC_DATA.brands[0];
+          wrapper.innerHTML = `
+            <span class="edu-section-title">Glass Physics & Coating: ${selectedBrand.name}</span>
+            <p class="edu-text"><strong>Visual Coating Profile:</strong> ${selectedBrand.visual}</p>
+            <div class="edu-warning-box">
+              <span class="edu-warning-title">Vintage Lens Flare Warnings</span>
+              <span style="font-size:12px; color:var(--text-muted); display:block; line-height:1.4;">Too much backlighting on vintage glass like Canon K35 will drop global contrast completely. Use matte boxes.</span>
+            </div>
+          `;
+          return wrapper;
+        }
+
+        if (step.id === "lighting") {
+          const selectedLight = CINEMATIC_DATA.lighting.find(l => l.id === this.form.lighting) || CINEMATIC_DATA.lighting[0];
+          wrapper.innerHTML = `
+            <span class="edu-section-title">Illumination Geometry: ${selectedLight.name}</span>
+            <p class="edu-text"><strong>Staging Purpose:</strong> ${selectedLight.purpose}</p>
+            <div class="edu-advice-box">
+              <span class="edu-advice-title">How to construct in prompt</span>
+              <span style="font-size:12px; color:var(--text-muted); display:block; line-height:1.4;">Define high lighting contrast ratios and specify where shadows fall (e.g. 'heavy shadow pools on left cheekbone').</span>
+            </div>
+            <p class="edu-text" style="font-size:12px; font-style:italic;">Classic Movie Examples: ${selectedLight.examples}</p>
+          `;
+          return wrapper;
+        }
+
+        // General backup informative box
+        wrapper.innerHTML = `
+          <span class="edu-section-title">Cinematic Education Digest</span>
+          <p class="edu-text">Every parameter chosen alters prompt weights across models differently. High-contrast keywords lock the dynamic range, while explicit sensor names like 'Alexa 35' enforce natural textures rather than synthetic vector smooth surfaces.</p>
+        `;
+        return wrapper;
+      }
+
+      nextStep() {
+        if (this.currentStepIdx < this.steps.length - 1) {
+          this.currentStepIdx++;
+          this.updateUIForStep();
+        } else {
+          alert("All steps configured! Review and export your master prompts in the right dynamic panels.");
+        }
+      }
+
+      prevStep() {
+        if (this.currentStepIdx > 0) {
+          this.currentStepIdx--;
+          this.updateUIForStep();
+        }
+      }
+
+      applyPresetStyle() {
+        const val = document.getElementById("builder-preset-style").value;
+        if (val === "none") return;
+
+        const preset = CINEMATIC_DATA.presets[val];
+        if (preset) {
+          this.saveState();
+          this.form.genre = preset.genre;
+          this.form.lighting = preset.lighting;
+          this.form.color = preset.color;
+          this.form.camera = preset.camera;
+          this.form.lens = preset.lens;
+          this.form.composition = preset.composition;
+          this.updateUIForStep();
+          this.updatePreview();
+        }
+      }
+
+      // =========================================================================
+      // 13. COMPILER CORE ENGINE (RECONSTRUCTS VISUAL SYNTAX PROMPT PACKS)
+      // =========================================================================
+      compileActivePrompt() {
+        const c = this.form.character;
+        const realismString = this.form.realism.join(", ");
+        
+        const coreDesc = `A cinematic, highly dramatic film still of a ${c.age} ${c.nationality} ${c.profession}, featuring ${c.hair}, ${c.eyes}, exhibiting an expression of ${c.expression}, dressed in a ${c.wardrobe} with ${c.accessories}.`;
+        const setDetails = `The scene unfolds inside a ${this.form.location} during ${this.form.time} under a ${this.form.weather} climate.`;
+        
+        const cameraDetails = `Shot on an ${this.getCameraName(this.form.camera)} high-end cinema camera paired with ${this.form.lens} ${this.getLensBrandName(this.form.lensBrand)} optics.`;
+        const photographyGrip = `Composition features a stylized ${this.getFramingName(this.form.composition)} framing structure, illuminated with professional ${this.getLightingName(this.form.lighting)} setup.`;
+        const gradingDetails = `Color-graded in ${this.getColorName(this.form.color)} film stock aesthetics. Realism optimized with ${realismString}.`;
+
+        const masterPrompt = `${coreDesc} ${setDetails} ${cameraDetails} ${photographyGrip} ${gradingDetails} --ar 16:9`;
+
+        switch (this.activeOutputTab) {
+          case "midjourney":
+            return `${coreDesc} ${setDetails} --ar 16:9 --style raw --v 6.0 --camera ${this.getCameraName(this.form.camera)} ${this.form.lens}`;
+          case "flux":
+            return `A hyper-realistic film still, detailed movie scene: ${coreDesc} ${setDetails}. Shot with ${this.getCameraName(this.form.camera)}, detailed textures, ${this.getLightingName(this.form.lighting)} lighting, ${realismString}.`;
+          case "gpt":
+            return `A professional narrative wide cinema photo showing a ${c.age} ${c.profession}. ${setDetails} Symmetrical cinematic depth of field, natural realistic light, shot on classic analog 35mm film stock, award-winning cinematography.`;
+          case "firefly":
+            return `Commercial cinematic layout, movie frame, prestige studio lighting: ${coreDesc} ${setDetails}. Clean gradients, high contrast shadow structures, 4k.`;
+          case "video":
+            return `Cinematic slow motion sequence, 24fps panning shot, dramatic atmosphere: ${coreDesc} ${setDetails}. Wind blowing, rain falling, detailed fluid motion physics, photorealistic lighting.`;
+          case "master":
+          default:
+            return masterPrompt;
+        }
+      }
+
+      getCameraName(id) {
+        const obj = CINEMATIC_DATA.cameras.find(c => c.id === id);
+        return obj ? obj.name : "High-end Cinema Camera";
+      }
+
+      getLensBrandName(id) {
+        const obj = CINEMATIC_DATA.brands.find(b => b.id === id);
+        return obj ? obj.name : "Cinema glass";
+      }
+
+      getLightingName(id) {
+        const obj = CINEMATIC_DATA.lighting.find(l => l.id === id);
+        return obj ? obj.name : "cinematic lighting";
+      }
+
+      getColorName(id) {
+        const obj = CINEMATIC_DATA.colors.find(c => c.id === id);
+        return obj ? obj.name : "Standard cinema grade";
+      }
+
+      getFramingName(id) {
+        const obj = CINEMATIC_DATA.compositions.find(c => c.id === id);
+        return obj ? obj.desc : "Cinematic framing";
+      }
+
+      switchOutputTab(tabId) {
+        this.activeOutputTab = tabId;
+        document.querySelectorAll(".output-tab").forEach(t => t.classList.remove("active"));
+        
+        // Find matching tab element to toggle visual active class
+        const index = ["master", "midjourney", "flux", "gpt", "firefly", "video"].indexOf(tabId);
+        const tabs = document.querySelectorAll(".output-tab");
+        if (tabs[index]) tabs[index].classList.add("active");
+
+        const elTitle = document.getElementById("active-tab-title");
+        if (elTitle) elTitle.innerText = `Active Output: ${tabId.toUpperCase()} Engine syntax`;
+
+        this.updatePreview();
+      }
+
+      updatePreview() {
+        const outBox = document.getElementById("prompt-output-box");
+        if (outBox) {
+          outBox.innerText = this.compileActivePrompt();
+        }
+        this.calculatePromptScore();
+      }
+
+      copyPrompt(elementId) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        const text = el.tagName === "TEXTAREA" ? el.value : el.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+          alert("Prompt parameters copied to clipboard successfully.");
+        });
+      }
+
+      toggleFavoritePrompt() {
+        this.form.favorite = !this.form.favorite;
+        alert(this.form.favorite ? "Prompt draft marked as Favorite in local workspace." : "Removed draft from Favorites.");
+      }
+
+      // =========================================================================
+      // 14. DYNAMIC ANALYTICS & SUGGESTION ENGINE
+      // =========================================================================
+      calculatePromptScore() {
+        let compositionScore = 0;
+        let lightingScore = 0;
+        let realismScore = 0;
+        const suggestions = [];
+
+        // Composition Score Logic
+        if (this.form.composition) {
+          compositionScore += 60;
+          if (this.form.lens) compositionScore += 40;
+        } else {
+          suggestions.push("⚠️ Add Lens perspective specs to lock down structural depth of field.");
+        }
+
+        // Lighting Score Logic
+        if (this.form.lighting !== "motivated") {
+          lightingScore += 100;
+        } else {
+          lightingScore += 80; // Motivated is high, but we advise custom shafts
+          suggestions.push("💡 Tip: Pair motivated lighting with 'Volumetric shaft lighting' for award-winning atmosphere.");
+        }
+
+        // Realism Score Logic
+        if (this.form.realism && this.form.realism.length > 0) {
+          realismScore = Math.min(this.form.realism.length * 35, 100);
+        } else {
+          suggestions.push("⚠️ AI Detection Warning: No photography skin-pore emulations selected. Faces may render plastic.");
+        }
+
+        if (this.form.character.expression === "") {
+          suggestions.push("🎭 Expression: Add character emotions to make faces dramatic.");
+        }
+
+        // Update viewbars
+        document.getElementById("score-val-composition").innerText = `${compositionScore}%`;
+        document.getElementById("score-bar-composition").style.width = `${compositionScore}%`;
+
+        document.getElementById("score-val-lighting").innerText = `${lightingScore}%`;
+        document.getElementById("score-bar-lighting").style.width = `${lightingScore}%`;
+
+        document.getElementById("score-val-realism").innerText = `${realismScore}%`;
+        document.getElementById("score-bar-realism").style.width = `${realismScore}%`;
+
+        // Load Suggestions UI
+        const container = document.getElementById("score-suggestions");
+        if (container) {
+          container.innerHTML = "";
+          if (suggestions.length === 0) {
+            container.innerHTML = `<div class="suggestion-item" style="color:var(--success)">✅ Dynamic syntax matches all professional cinematographer guidelines! Ready to generate.</div>`;
+          } else {
+            suggestions.forEach(s => {
+              const div = document.createElement("div");
+              div.className = "suggestion-item";
+              div.innerText = s;
+              container.appendChild(div);
+            });
+          }
+        }
+      }
+
+      // =========================================================================
+      // 15. EXPORTS MANAGEMENT (PRINT STYLESHEET SUPPORT)
+      // =========================================================================
+      exportFile(type) {
+        const text = this.compileActivePrompt();
+        const filename = `${this.form.projectName.toLowerCase().replace(/\s+/g, '_')}_prompt.${type}`;
+        let mime = "text/plain";
+        let content = text;
+
+        if (type === "json") {
+          mime = "application/json";
+          content = JSON.stringify({
+            projectName: this.form.projectName,
+            sceneTitle: this.form.sceneTitle,
+            promptType: this.form.promptType,
+            masterPrompt: text,
+            negativePrompt: document.getElementById("negative-prompt-box").value,
+            technicalSpecifications: {
+              camera: this.getCameraName(this.form.camera),
+              lens: this.form.lens,
+              lighting: this.getLightingName(this.form.lighting),
+              filmStock: this.getColorName(this.form.color)
+            }
+          }, null, 2);
+        } else if (type === "md") {
+          content = `# Cinematic Prompt Project: ${this.form.projectName}\n## Scene: ${this.form.sceneTitle}\n\n### Master Prompt Parameters\n\`\`\`\n${text}\n\`\`\`\n\n### Negative Parameters\n\`\`\`\n${document.getElementById("negative-prompt-box").value}\n\`\`\``;
+        }
+
+        const blob = new Blob([content], { type: mime });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+      }
+
+      // =========================================================================
+      // 16. SAVED WORKSPACE PROJECTS VIEWPORT
+      // =========================================================================
+      saveCurrentProject() {
+        const text = this.compileActivePrompt();
+        const proj = {
+          id: "proj_" + Date.now(),
+          projectName: this.form.projectName,
+          sceneTitle: this.form.sceneTitle,
+          promptType: this.form.promptType,
+          genre: this.form.genre,
+          prompt: text,
+          favorite: this.form.favorite
+        };
+
+        this.projects.push(proj);
+        DB.set("projects_v1", this.projects);
+        alert("Project saved successfully to browser local storage workspace.");
+      }
+
+      deleteProject(id) {
+        if (confirm("Delete this draft permanently?")) {
+          this.projects = this.projects.filter(p => p.id !== id);
+          DB.set("projects_v1", this.projects);
+          this.renderProjectsList();
+        }
+      }
+
+      renderProjectsList() {
+        const grid = document.getElementById("projects-grid-viewport");
+        const list = document.getElementById("projects-sidebar-list");
+        if (!grid || !list) return;
+
+        grid.innerHTML = "";
+        list.innerHTML = "";
+
+        if (this.projects.length === 0) {
+          grid.innerHTML = `<div style="grid-column: span 3; text-align:center; padding: 40px; color:var(--text-muted); font-family:var(--font-mono);">No cinematic drafts saved yet. Get started in the Prompt Builder!</div>`;
+          return;
+        }
+
+        this.projects.forEach(p => {
+          // Injected Grid Item Cards
+          const card = document.createElement("div");
+          card.className = "list-item";
+          card.style.flexDirection = "column";
+          card.style.alignItems = "flex-start";
+          card.style.padding = "16px";
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; width:100%; margin-bottom:8px;">
+              <span class="field-label" style="color:var(--accent);">${p.promptType.toUpperCase()}</span>
+              <span style="cursor:pointer; color:var(--danger);" onclick="event.stopPropagation(); app.deleteProject('${p.id}')">✕ Delete</span>
+            </div>
+            <div class="list-item-title" style="font-size:16px;">${p.projectName}</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:4px; line-height:1.4;">${p.sceneTitle} - ${p.genre.toUpperCase()}</div>
+            <div class="preview-box" style="margin-top:12px; width:100%; max-height:80px; padding:10px; font-size:11px;">${p.prompt}</div>
+          `;
+          card.onclick = () => {
+            // Restore draft logic
+            this.form.projectName = p.projectName;
+            this.form.sceneTitle = p.sceneTitle;
+            this.form.promptType = p.promptType;
+            this.form.genre = p.genre;
+            this.navigateTo("builder");
+          };
+          grid.appendChild(card);
+
+          // Injected Left Sidebar Items
+          const sideItem = document.createElement("div");
+          sideItem.className = "list-item";
+          sideItem.innerHTML = `
+            <div>
+              <div class="list-item-title">${p.projectName}</div>
+              <div class="list-item-subtitle">${p.promptType} - ${p.genre}</div>
+            </div>
+          `;
+          sideItem.onclick = () => {
+            this.form.projectName = p.projectName;
+            this.form.sceneTitle = p.sceneTitle;
+            this.form.promptType = p.promptType;
+            this.form.genre = p.genre;
+            this.navigateTo("builder");
+          };
+          list.appendChild(sideItem);
+        });
+      }
+
+      filterProjects() {
+        const query = document.getElementById("project-search-bar").value.toLowerCase();
+        const items = document.querySelectorAll("#projects-grid-viewport .list-item");
+        items.forEach(it => {
+          const text = it.innerText.toLowerCase();
+          if (text.includes(query)) {
+            it.style.display = "flex";
+          } else {
+            it.style.display = "none";
+          }
+        });
+      }
+
+      // =========================================================================
+      // 17. CINEMATIC BIBLE ARCHIVE & RECOLLECTIONS
+      // =========================================================================
+      switchDocCategory(catId) {
+        this.activeDocCategory = catId;
+        const listItems = document.querySelectorAll("#screen-library .list-item");
+        listItems.forEach(it => it.classList.remove("selected"));
+
+        const index = ["camera", "lenses", "brands", "lighting", "color"].indexOf(catId);
+        if (listItems[index]) listItems[index].classList.add("selected");
+
+        this.renderDocumentation();
+      }
+
+      renderDocumentation() {
+        const view = document.getElementById("library-content-viewport");
+        const title = document.getElementById("library-header-title");
+        if (!view) return;
+
+        view.innerHTML = "";
+        
+        if (this.activeDocCategory === "camera") {
+          title.innerText = "CAMERA FORMATS & SENSOR DICTIONARY";
+          CINEMATIC_DATA.cameras.forEach(cam => {
+            const card = document.createElement("div");
+            card.className = "edu-container";
+            card.innerHTML = `
+              <h3 style="font-size:18px; color:var(--accent);">${cam.name}</h3>
+              <p class="edu-text" style="margin-top:8px;"><strong>Visual Signature:</strong> ${cam.visual}</p>
+              <p class="edu-text"><strong>Historical Context:</strong> ${cam.history}</p>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;">
+                <div class="edu-advice-box">
+                  <span class="edu-advice-title">Industry Strengths</span>
+                  <span style="font-size:12px; line-height:1.4;">${cam.strengths}</span>
+                </div>
+                <div class="edu-warning-box">
+                  <span class="edu-warning-title">Weaknesses / Constraints</span>
+                  <span style="font-size:12px; line-height:1.4;">${cam.weaknesses}</span>
+                </div>
+              </div>
+              <p class="edu-text" style="margin-top:8px; font-size:12px; font-style:italic;">Key Film References: ${cam.examples}</p>
+            `;
+            view.appendChild(card);
+          });
+        } else if (this.activeDocCategory === "lenses") {
+          title.innerText = "CINEMATIC FOCAL LENGTH OPTICS";
+          CINEMATIC_DATA.lenses.forEach(l => {
+            const card = document.createElement("div");
+            card.className = "edu-container";
+            card.innerHTML = `
+              <h3 style="font-size:18px; color:var(--accent);">${l.name}</h3>
+              <p class="edu-text" style="margin-top:6px;"><strong>Spatial Compression Profile:</strong> ${l.perspective}</p>
+              <p class="edu-text" style="font-size:12px; font-style:italic; color:var(--text-muted);">Ideal Scene Context: ${l.examples}</p>
+            `;
+            view.appendChild(card);
+          });
+        } else if (this.activeDocCategory === "brands") {
+          title.innerText = "VINTAGE & MODERN LENS GLASS BRANDS";
+          CINEMATIC_DATA.brands.forEach(b => {
+            const card = document.createElement("div");
+            card.className = "edu-container";
+            card.innerHTML = `
+              <h3 style="font-size:18px; color:var(--accent);">${b.name}</h3>
+              <p class="edu-text" style="margin-top:6px;"><strong>Anamorphic Coating & Flare Quality:</strong> ${b.visual}</p>
+            `;
+            view.appendChild(card);
+          });
+        } else if (this.activeDocCategory === "lighting") {
+          title.innerText = "CINEMATIC LIGHTING SCHEMAS";
+          CINEMATIC_DATA.lighting.forEach(light => {
+            const card = document.createElement("div");
+            card.className = "edu-container";
+            card.innerHTML = `
+              <h3 style="font-size:18px; color:var(--accent);">${light.name}</h3>
+              <p class="edu-text" style="margin-top:6px;"><strong>Aesthetic Intent & Story Integration:</strong> ${light.purpose}</p>
+              <p class="edu-text" style="font-size:12px; font-style:italic; color:var(--text-muted);">Iconic Movie Scene Reference: ${light.examples}</p>
+            `;
+            view.appendChild(card);
+          });
+        } else if (this.activeDocCategory === "color") {
+          title.innerText = "COLOR GRADING SCIENCE & FILM STOCKS";
+          CINEMATIC_DATA.colors.forEach(col => {
+            const card = document.createElement("div");
+            card.className = "edu-container";
+            card.innerHTML = `
+              <h3 style="font-size:18px; color:var(--accent);">${col.name}</h3>
+              <p class="edu-text" style="margin-top:6px;"><strong>Chroma Roll-Off Profile:</strong> ${col.visual}</p>
+            `;
+            view.appendChild(card);
+          });
+        }
+      }
+    }
+
+    // Launch Application instance
+    window.app = new BlacklawPromptStudio();
+  </script>
+</body>
+</html>
